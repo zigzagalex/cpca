@@ -24,9 +24,25 @@ void init_identity(double *M, int n) {
         M[i * n + i] = 1.0;
 }
 
+typedef struct {
+    int m;
+    int n;
+    double *B;  // bidiagonal matrix (m x n)
+    double *U;  // m x m
+    double *V;  // n x n
+} BidiagResult;
 
-void householder_bidiag(int m, int n, double *A, double *U, double *V) {
+
+BidiagResult householder_bidiag(int m, int n, double *A_input) {
     int min_mn = (m < n) ? m : n;
+
+    // Allocate result matrices
+    double *A = (double *)malloc(sizeof(double) * m * n); // Will become B
+    double *U = (double *)malloc(sizeof(double) * m * m);
+    double *V = (double *)malloc(sizeof(double) * n * n);
+
+    // Copy input matrix so we don't overwrite user input
+    for (int i = 0; i < m * n; i++) A[i] = A_input[i];
 
     // Initialize U and V as identity matrices.
     init_identity(U, m);
@@ -121,39 +137,7 @@ void householder_bidiag(int m, int n, double *A, double *U, double *V) {
     print_matrix("U (Left reflectors product)", U, m, m);
     print_matrix("V (Right reflectors product)", V, n, n);
 
-    // Free memory
-    free(A);
-    free(U);
-    free(V);
+    BidiagResult result = {m,n,A,U,V};
+    return result;
     
-}
-
-
-int main(){
-	int m = 4, n = 3;
-
-    // Allocate memory for A, U, V.
-    double *A = (double *)malloc(m * n * sizeof(double));
-    double *U = (double *)malloc(m * m * sizeof(double));
-    double *V = (double *)malloc(n * n * sizeof(double));
-
-    // For demonstration: fill A with some values (e.g., row-major 1,2,3,...)
-    for (int i = 0; i < m * n; i++) {
-        A[i] = (double)(i + 1);
-    }
-
-    // Example matrix A (row-major): you can change these numbers.
-    // For instance, A is:
-    // [ 12  -51    4 ]
-    // [  6  167  -68 ]
-    // [ -4   24  -41 ]
-    // [  1    2    3 ]
-    double A_init[12] = {
-         12, -51,   4,
-          6, 167, -68,
-         -4,  24, -41,
-          1,   2,   3
-    };
-
-    householder_bidiag(m,n,A,U,V);
 }
