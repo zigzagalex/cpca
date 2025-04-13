@@ -82,6 +82,16 @@ bool is_orthogonal(const double *Q, int n, double tol) {
     return true;
 }
 
+// Blocking
+void find_active_block(double *d, double *e, int *p, int *q, int k_dim) {
+    int start = 0;
+    while (start < k_dim - 1 && e[start] == 0) start++;
+    int end = start;
+    while (end < k_dim - 1 && e[end] != 0) end++;
+    *p = start;
+    *q = end;
+}
+
 /*
   Golub–Reinsch SVD for a bidiagonal matrix (assumed square, dimension n).
   
@@ -132,68 +142,85 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
         }
     }
 
-    // Perform iterations for each singular value (processing the bidiagonal matrix)
-    for (int idx = k_dim - 1; idx >= 0; idx--) {
+    // Process the bidiagonal matrix block-by-block.
+    // 2b
+    int p = 0, q = 0;
+    find_active_block(d, e, &p, &q, k_dim);
+    // p: start index; q: first index where off-diagonal is zero (or q == k_dim if never zero)
+    while (p < k_dim) {
+        // If the block is trivial (a 1x1 block), skip it.
+        if (p == q) {
+            p = q + 1;
+            if (p < k_dim)
+                find_active_block(d, e, &p, &q, k_dim);
+            continue;
+        }
+        // Process active block [p, q] with implicit QR steps.
         int iter = 0;
-        while (1) {
-            // Test for negligible off-diagonals.
-            int l;
-            for (l = idx; l > 0; l--) {
-                if (fabs(e[l - 1]) <= epsilon * (fabs(d[l - 1]) + fabs(d[l]))) {
-                    e[l - 1] = 0.0;  // Set to 0 if below threshold.
+        while (true) {
+            // Zero out any tiny off-diagonals within the block.
+            for (int i = p; i < q; i++) {
+                if (fabs(e[i]) <= epsilon * (fabs(d[i]) + fabs(d[i+1])))
+                    e[i] = 0.0;
+            }
+            // Check if the block has split (i.e. an off-diagonal is exactly zero).
+            int split_found = -1;
+            for (int i = p; i < q; i++) {
+                if (e[i] == 0.0) {
+                    split_found = i;
                     break;
                 }
             }
-            // If the off-diagonal element for index k is negligible, singular value has converged.
-            if (l == idx)
+            // If the block has split, break out to re-assess the active blocks.
+            if (split_found != -1)
                 break;
-            
+
             if (iter++ >= MAX_ITER) {
-                fprintf(stderr, "SVD failed to converge after %d iterations\n", MAX_ITER);
+                fprintf(stderr, "SVD failed to converge for block [%d, %d] after %d iterations\n", p, q, MAX_ITER);
                 exit(1);
             }
-            
-            // Compute the implicit shift, mu, from the 2x2 bottom-right block.
-            double mu = compute_shift(idx, l, d, e);
-            
-            // Perform QR step with implicit shift mu.
-            double x = d[l] - mu;
-            double z = e[l];
+
+            // Compute the implicit shift mu using the bottom-right 2x2 submatrix of the block.
+            // Here we use indices (q-1, q) since q is the last index in the active block.
+            double mu = compute_shift(q, p, d, e);
+
+            // Perform one QR sweep over the block.
+            double x = d[p] - mu;
+            double z = e[p];
             double c, s;
-            for (int i = l; i < idx; i++) {
-                if (i+1 >= k_dim) break;
-                // Compute rotation to zero out z.
+            for (int i = p; i < q; i++) {
                 givens_rotation(x, z, &c, &s);
                 
-                // --- Apply rotation to the bidiagonal elements ---
-                // Save old values.
-                double di = d[i];
-                double ei = e[i];
-                double dip = d[i + 1];
+                // Apply right rotation to update d[i] and e[i].
+                double temp_d = d[i];
+                double temp_e = e[i];
+                d[i] = c * temp_d - s * temp_e;
+                e[i] = s * temp_d + c * temp_e;
                 
-                // Update diagonal element.
-                d[i] = c * di - s * ei;
-                // The off-diagonal element becomes the combination.
-                e[i] = s * di + c * ei;
-                // The next diagonal element is updated.
-                d[i + 1] = c * dip;
+                // If applicable, update the next diagonal element.
+                if (i + 1 <= q) {
+                    double temp_d_next = d[i + 1];
+                    d[i + 1] = c * temp_d_next;
+                }
                 
-                // Prepare x and z for next rotation.
+                // Prepare values for the next rotation.
                 x = d[i];
-                z = e[i];
+                // For all but the last element, use e[i+1] for the next z.
+                z = (i < q - 1) ? e[i + 1] : 0.0;
                 
-                // --- Accumulate right singular vector rotations in V ---
-                apply_givens_to_cols(V, n, n, i, i+1, c, s);
-                
-                // --- Accumulate left singular vector rotations in U ---
-                apply_givens_to_cols(U, m, m, i, i+1, c, s);
-
+                // Accumulate the Givens rotation into the singular vector matrices.
+                apply_givens_to_cols(V, n, n, i, i + 1, c, s);
+                apply_givens_to_cols(U, m, m, i, i + 1, c, s);
             }
-            // Final adjustment: if the last computed z is negligible, set corresponding e to zero.
-            if (fabs(z) <= epsilon * (fabs(d[idx - 1]) + fabs(d[idx])))
-                e[idx - 1] = 0.0;
-        } // end while
-    } // end for idx
+            // Final adjustment: if the last computed z is small, set the corresponding off-diagonal to 0.
+            if (fabs(z) <= epsilon * (fabs(d[q - 1]) + fabs(d[q])))
+                e[q - 1] = 0.0;
+        } // End processing for current block.
+
+        // Recompute the next active block.
+        find_active_block(d, e, &p, &q, k_dim);
+    } // End processing of all blocks.
+
 
     // Post-process: make singular values nonnegative.
     for (int i = 0; i < k_dim; i++) {
@@ -205,8 +232,10 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
         }
     }
 
-    // Fill S
-    for (int i = 0; i < k_dim; i++) S[i] = d[i];
+        // Store singular values in S.
+    for (int i = 0; i < k_dim; i++) {
+        S[i] = d[i];
+    }
 
     // Free temporary resources.
     free(bidiag.B);
