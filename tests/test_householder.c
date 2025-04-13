@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include <cblas.h> 
 #include "householder.h"  // contains BidiagResult + householder_bidiag()
 
 #define TOL 1e-6
@@ -10,6 +11,27 @@
 int nearly_equal(double a, double b, double tol) {
     return fabs(a - b) < tol;
 }
+
+// Debugging print functions
+void print_matrix(const char *name, const double *M, int rows, int cols) {
+    printf("%s:\n", name);
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            printf("%10.4f ", M[i * cols + j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+void print_vector(const char *name, const double *V, int len) {
+    printf("%s:\n", name);
+    for (int i = 0; i < len; i++) {
+        printf("%10.4f ", V[i]);
+    }
+    printf("\n\n");
+}
+
 
 /* ------------------------------------------------------------------------
  * Test 1: Zero Column Test
@@ -91,6 +113,61 @@ void test_identity() {
 }
 
 /* ------------------------------------------------------------------------
+ * Test 4: Reconstruction of A using the results up to TOLARANCE
+ * ------------------------------------------------------------------------ */
+void test_bidiag_reconstruction() {
+    int m = 4, n = 3;
+    double A[12] = {
+        1.0, 2.0, 3.0,
+        4.0, 5.0, 6.0,
+        7.0, 8.0, 9.0,
+        10.0, 11.0, 12.0
+    };
+
+    BidiagResult result = householder_bidiag(m, n, A);
+
+    // U: m x m, B: m x n, V: n x n → we want A_rec = U * B * Vᵀ
+
+    // Step 1: T = B * Vᵀ (B: m x n, Vᵀ: n x n → T: m x n)
+    double *T = (double *)calloc(m * n, sizeof(double));
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
+                m, n, n,
+                1.0, result.B, n,
+                     result.V, n,
+                0.0, T, n);
+
+    // Step 2: A_rec = U * T (U: m x m, T: m x n → A_rec: m x n)
+    double *A_rec = (double *)calloc(m * n, sizeof(double));
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                m, n, m,
+                1.0, result.U, m,
+                     T, n,
+                0.0, A_rec, n);
+
+    // Compare A_rec to original A
+    double error = 0.0;
+    for (int i = 0; i < m * n; i++) {
+        double diff = A[i] - A_rec[i];
+        error += diff * diff;
+    }
+    error = sqrt(error);
+
+    print_matrix("Original A", A, m, n);
+    print_matrix("Reconstructed A", A_rec, m, n);
+    printf("Bidiagonal reconstruction error (Frobenius norm): %e\n", error);
+
+    assert(error < TOL);
+
+    free(result.B);
+    free(result.U);
+    free(result.V);
+    free(T);
+    free(A_rec);
+
+    printf("Test 'test_bidiag_reconstruction' passed.\n");
+}
+
+/* ------------------------------------------------------------------------
  * main()
  * ------------------------------------------------------------------------ */
 int main() {
@@ -98,6 +175,7 @@ int main() {
     test_zero_column();
     test_1x1();
     test_identity();
+    test_bidiag_reconstruction();  
     printf("All tests passed.\n");
     return 0;
 }

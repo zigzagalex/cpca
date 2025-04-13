@@ -3,19 +3,6 @@
 #include <math.h>
 #include <cblas.h>
 
-
-// Utility: Print a matrix stored in row-major order.
-void print_matrix(const char* name, double* M, int rows, int cols) {
-    printf("%s:\n", name);
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            printf("%8.4f ", M[i * cols + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
 // Initialize an identity matrix of size n x n.
 void init_identity(double *M, int n) {
     for (int i = 0; i < n * n; i++)
@@ -81,11 +68,11 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
         // Accumulate the reflector in U (apply H = I - beta*v*v^T to U from the right).
         // Only the part from row i to m-1 is affected.
         for (int r = 0; r < m; r++) {
-            double dot = cblas_ddot(len, &U[r*n + i], 1, v, 1);
-            for (int k = 0; k < len; k++) {
-                U[r*n + i + k] -= beta * dot * v[k];
+            double dot = cblas_ddot(len, &U[r*m + i], 1, v, 1);
+                for (int k = 0; k < len; k++) {
+                    U[r*m + i + k] -= beta * dot * v[k];
+                }
             }
-        }
 
         free(v);
 
@@ -132,10 +119,6 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
     //   (Diagonal elements in A[i][i], and superdiagonals in A[i][i+1].)
     // - U and V are the accumulations of the Householder reflectors,
     //   so that the original A satisfies: A_original = U * B * V^T.
-    
-    print_matrix("B (bidiagonal form stored in A)", A, m, n);
-    print_matrix("U (Left reflectors product)", U, m, m);
-    print_matrix("V (Right reflectors product)", V, n, n);
 
     BidiagResult result = {m,n,A,U,V};
     return result;

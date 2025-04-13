@@ -10,8 +10,21 @@ tests/test_householder.c src/householder.c \
 -I/usr/local/opt/openblas/include \
 -L/usr/local/opt/openblas/lib \
 -lopenblas \
--o run_tests
+-o run_tests_householder
 
-echo "🚀 Running tests with AddressSanitizer..."
-./run_tests
+gcc -fsanitize=address -g \
+tests/test_golub_reinsch.c \
+src/golub-reinsch.c \
+src/householder.c \
+-I./src \
+-I/usr/local/opt/openblas/include \
+-L/usr/local/opt/openblas/lib \
+-lopenblas \
+-o run_tests_golub_reinsch
+
+
+echo "🚀 Running householder tests with AddressSanitizer..."
+./run_tests_householder
+echo "🚀 Running golub-reinsch tests with AddressSanitizer..."
+./run_tests_golub_reinsch
 
