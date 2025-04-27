@@ -12,7 +12,6 @@
 typedef struct {
     int m;      // number of rows of the original matrix A
     int n;      // number of columns of the original matrix A
-    int k;      // min(m,n)
     double *U;  // Left singular vectors, stored in row-major (size: m x m)
     double *S;  // Singular values (vector of length k)
     double *V;  // Right singular vectors, stored in row-major (size: n x n)
@@ -93,19 +92,36 @@ void find_active_block(double *d, double *e, int *p, int *q, int k_dim) {
 }
 
 /*
-  Golub–Reinsch SVD for a bidiagonal matrix (assumed square, dimension n).
-  
-  Inputs:
-    n       - dimension of the bidiagonal matrix.
-    d       - array of length n holding the diagonal elements.
-    e       - array of length n-1 holding the superdiagonal elements.
-              (We assume e[n-1] is not used; you can set it to 0.)
-    *A      - m x n input Matrix
-    epsilon - machine precision threshold for convergence.
+    Golub–Reinsch SVD for a bidiagonal matrix (assumed square, dimension n).
+
+    Inputs: 
+        m: number of rows in matrix 
+        n: number of columns in matrix
+        *A: m x n matrix
+        epsilon: percision for setting close to zero elements to zero for convergence
     
-  After running, d will hold the singular values (not necessarily sorted),
-  and U, V will contain the accumulated rotations such that the original
-  bidiagonal matrix B ≈ U * Σ * V^T.
+    Output: 
+        SVDResult: struct containing
+            m: number of rows in matrix 
+            n: number of columns in matrix
+            U: m x n orthogonal matrix containing accumulated Householder and Givens rotations from the left (eigenvectors of A^T*A)
+            S: n x n diagonal matrix containing singular values (eigenvalues of A^T*A)
+            V: n x n orthogonal matrix containing accumulated Householder and Givens rotations from the right (eigenvectors of A*A^T)
+    
+  
+    Steps in algorithm: 
+    1. Compute A = U' * B * V'^T using Householder reflections so that U', V' orthogonal and B is bidiagonal
+    2. Loop through these steps for i from 0 to min(m,n): 
+        2.1 If B[i,i+1] < epsilon * (abs(B[i,i])+abs(B[i+1, i+1])) set B[i, i+1]=0
+        2.2 Find biggest q s.t. B[i,i+1]=0 for any q<=i<=n if not found set 0
+        2.3 Break if q = 0 (i.e. B is already diagonal)
+        2.4 Find smallest p s.t. B[i,i+1]!=0 for any in p+1<=i<=q-1 if not found set 0
+        2.5 For any p+1<=i<=q-1 if B[i,i]=0 apply a left Givens rotation to zero out B[i,i+1] and update U' and V'
+        2.6 Else apply the Gholub Kahan step for the submatrix B2 from [p+1,p+1] to [q-1, 1-1] and update U' and V'
+            2.6.1 Set C = lower 2x2 matrix of B2^T*B2
+            2.6.2 Compute eigenvalues lambda_1, lambda_2 of C and set mu= lambda_? s.t. the eigenvalue is closer to C[2,2]
+            2.6.3 Set alpha = B[p+1,p+1]^2-mu and beta = B[p+1,p+1]*B[p+1,p+2]
+            2.6.4
 */
 SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
     // Bidiagonalize A
