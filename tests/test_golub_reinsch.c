@@ -68,8 +68,8 @@ void reconstruct_A(const SVDResult *svdRes, double *A_rec) {
 void test_reconstruction() {
     int m = 2, n = 2;
     double A[4] = {
-        4.0, 0.0,
-        3.0, -5.0
+        10.0, 0.0,
+        10.0, -10.0,
     };
 
     SVDResult svdRes = golub_reinsch_svd(m, n, A, TOL);

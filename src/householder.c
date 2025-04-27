@@ -20,30 +20,64 @@ typedef struct {
 } BidiagResult;
 
 
+/* 
+    Bidiagonalization of an m x n matrix using Householder transformations i.e. piviting so that the column matches the respective basis vector. 
+
+    Inputs:
+
+    m: int number of rows in matrix
+    n: int number of columns in matrix
+    *A_input: input matrix in row major form 
+
+    Output: 
+
+    BidiagResult: struct containing  
+        int m: number of rows in matrix
+        int n: number of columns in matrix
+        double *B: bidiagonal matrix (m x n)
+        double *U: orthogonal m x m matrix containing all the transformations to the left (columns)
+        double *V;  orthogonal n x n matrix containing all the transformations to the right (rows)
+
+    
+    Basic steps in algorithms: Set B = A. For each column k from 0 to min(m,n) repeat 1-6
+    1. Let v = B[k:,k] i.e. [0,0,0,b_k, b_k+1,...,b_min(m,n)] for column k
+    2. Let norm_v = l_2_norm(v)
+    3. Update v[0] = v[0]+sgn(v[0])*norm_v
+    4. Compute beta =  2 / (v^T v)
+    5. Left Householder (to zero out below B[k,k])
+        5.1 Apply the Householder reflector to submatrix B[k:m, k:n]: Compute dot = v^T * (column j of submatrix for j from k to n-1)
+        5.2 Accumulate the reflector in U (apply U = U * (I - beta*v*v^T to U from the right)).
+    6. Right Householder (to zero out right of B[k, k+1])
+        6.1 Apply the Householder reflector to submatrix B[k, k+1:n-1] 
+        6.2 Accumulate the reflecter in V (V = V * (I - beta2 * [0 I_len2]*v2*v2^T*[0 I_len2]^T))
+
+
+*/
+
 BidiagResult householder_bidiag(int m, int n, double *A_input) {
-    int min_mn = (m < n) ? m : n;
+    int min_mn = (m < n) ? m : n; // (condition) ? if_true : if_false
 
     // Allocate result matrices
-    double *A = (double *)malloc(sizeof(double) * m * n); // Will become B
+    double *B = (double *)malloc(sizeof(double) * m * n); 
     double *U = (double *)malloc(sizeof(double) * m * m);
     double *V = (double *)malloc(sizeof(double) * n * n);
 
     // Copy input matrix so we don't overwrite user input
-    for (int i = 0; i < m * n; i++) A[i] = A_input[i];
+    for (int i = 0; i < m * n; i++) B[i] = A_input[i];
 
     // Initialize U and V as identity matrices.
     init_identity(U, m);
     init_identity(V, n);
 
     // Loop over each column (and row) for bidiagonalization.
-    for (int i = 0; i < min_mn; i++) {
-        // ========= Left Householder (to zero out below A[i][i]) =========
-        int len = m - i;  // Length of vector for column i.
+    for (int k = 0; k < min_mn; k++) {
+        // ========= Left Householder (to zero out below B[k][k]) =========
+        int len = m - k;  // Length of vector for column k.
         double *v = (double *)malloc(len * sizeof(double));
 
-        // Extract the vector from A (column i, rows i to m-1).
-        for (int k = 0; k < len; k++) {
-            v[k] = A[(i+k)*n + i];
+        // Extract the vector from B (column k, rows k to m-1).
+        for (int i = 0; i < len; i++) {
+            v[i] = B[(k+i)*n + k];
         }
 
         // Compute the norm of v.
@@ -56,34 +90,34 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
         double vtv = cblas_ddot(len, v, 1, v, 1);
         double beta = (vtv == 0.0) ? 0.0 : 2.0 / vtv;
 
-        // Apply the Householder reflector to submatrix A[i:m, i:n].
-        for (int j = i; j < n; j++) {
+        // Apply the Householder reflector to submatrix B[k:m, k:n].
+        for (int j = k; j < n; j++) {
             // Compute dot = v^T * (column j of submatrix).
-            double dot = cblas_ddot(len, v, 1, &A[i*n + j], n);
-            for (int k = 0; k < len; k++) {
-                A[(i+k)*n + j] -= beta * v[k] * dot;
+            double dot = cblas_ddot(len, v, 1, &B[k*n + j], n);
+            for (int l = 0; l < len; l++) {
+                B[(k+l)*n + j] -= beta * v[l] * dot;
             }
         }
         
         // Accumulate the reflector in U (apply H = I - beta*v*v^T to U from the right).
         // Only the part from row i to m-1 is affected.
         for (int r = 0; r < m; r++) {
-            double dot = cblas_ddot(len, &U[r*m + i], 1, v, 1);
-                for (int k = 0; k < len; k++) {
-                    U[r*m + i + k] -= beta * dot * v[k];
+            double dot = cblas_ddot(len, &U[r*m + k], 1, v, 1);
+                for (int l = 0; l < len; l++) {
+                    U[r*m + k + l] -= beta * dot * v[l];
                 }
             }
 
         free(v);
 
-        // ========= Right Householder (to zero out A[i][i+2:n] if possible) =========
-        if (i < n - 1) {
-            int len2 = n - i - 1;  // Length for row reflector.
+        // ========= Right Householder (to zero out right of B[k, k+1] if possible) =========
+        if (k < n - 1) {
+            int len2 = n - k - 1;  // Length for row reflector.
             double *v2 = (double *)malloc(len2 * sizeof(double));
 
-            // Extract row i elements from column i+1 to n-1.
+            // Extract row i elements from column k+1 to n-1.
             for (int j = 0; j < len2; j++) {
-                v2[j] = A[i*n + (i+1+j)];
+                v2[j] = B[k*n + (k+1+j)];
             }
 
             double norm_v2 = cblas_dnrm2(len2, v2, 1);
@@ -92,11 +126,11 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
             double v2tv2 = cblas_ddot(len2, v2, 1, v2, 1);
             double beta2 = (v2tv2 == 0.0) ? 0.0 : 2.0 / v2tv2;
 
-            // Apply the reflector to submatrix A[i:m, i+1:n].
-            for (int k = i; k < m; k++) {
-                double dot = cblas_ddot(len2, &A[k*n + (i+1)], 1, v2, 1);
+            // Apply the reflector to submatrix B[k:m, k+1:n].
+            for (int l = k; l < m; l++) {
+                double dot = cblas_ddot(len2, &B[l*n + (k+1)], 1, v2, 1);
                 for (int j = 0; j < len2; j++) {
-                    A[k*n + (i+1+j)] -= beta2 * dot * v2[j];
+                    B[l*n + (k+1+j)] -= beta2 * dot * v2[j];
                 }
             }
 
@@ -104,9 +138,9 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
             // Update V = V * (I - beta2 * [0 I_len2]*v2*v2^T*[0 I_len2]^T)
             // Only columns i+1 to n-1 are affected.
             for (int r = 0; r < n; r++) {
-                double dot = cblas_ddot(len2, &V[r*n + (i+1)], 1, v2, 1);
+                double dot = cblas_ddot(len2, &V[r*n + (k+1)], 1, v2, 1);
                 for (int j = 0; j < len2; j++) {
-                    V[r*n + (i+1+j)] -= beta2 * dot * v2[j];
+                    V[r*n + (k+1+j)] -= beta2 * dot * v2[j];
                 }
             }
 
@@ -114,13 +148,7 @@ BidiagResult householder_bidiag(int m, int n, double *A_input) {
         }
     }
 
-    // At this point:
-    // - Matrix A is overwritten with the upper bidiagonal matrix B.
-    //   (Diagonal elements in A[i][i], and superdiagonals in A[i][i+1].)
-    // - U and V are the accumulations of the Householder reflectors,
-    //   so that the original A satisfies: A_original = U * B * V^T.
-
-    BidiagResult result = {m,n,A,U,V};
+    BidiagResult result = {m,n,B,U,V};
     return result;
     
 }
