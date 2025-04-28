@@ -47,14 +47,13 @@ void apply_givens_to_cols(double *M, int rows, int cols, int i, int j, double c,
 
 // Compute the implicit shift mu using the bottom 2x2 submatrix of the bidiagonal matrix.
 // Here, d[k-1] and d[k] are the two diagonal entries and e[k-1] is the off-diagonal element.
-double compute_shift(int k, int l, double *d, double *e) {
+double compute_shift(int m, int n, int k, int l, double *B) {
     // Use the bottom-right 2x2 block; here k is the current index (with 1 <= l < k <= n-1)
-    double dk1 = d[k - 1];
-    double dk = d[k];
-    double ek = e[k - 1];
-    double delta = (dk1 - dk) / 2.0;
-    double sign = (delta >= 0) ? 1.0 : -1.0;
-    double mu = dk - (ek * ek) / (delta + sign * sqrt(delta * delta + ek * ek));
+    double a = B[(k - 1)*n+(k-1)];
+    double b = B[k*n+k];
+    double d = B[(k - 1)*n+k];
+    // Compute eigenvalues of [a,b,0,d] and set mu to the cosest one to d
+    //
     return mu;
 }
 
@@ -82,11 +81,11 @@ bool is_orthogonal(const double *Q, int n, double tol) {
 }
 
 // Blocking
-void find_active_block(double *d, double *e, int *p, int *q, int k_dim) {
-    int start = 0;
-    while (start < k_dim - 1 && e[start] == 0) start++;
-    int end = start;
-    while (end < k_dim - 1 && e[end] != 0) end++;
+void find_active_block(double *B, int *p, int *q, int min_mn) {
+    int i = 0;
+    while (i < min_mn - 1 && B[i*n+i+1] == 0) i++;
+    int j = i;
+    while (j < min_mn - 1 && B[j*n+j+1] != 0) j++;
     *p = start;
     *q = end;
 }
@@ -126,63 +125,45 @@ void find_active_block(double *d, double *e, int *p, int *q, int k_dim) {
 SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
     // Bidiagonalize A
     BidiagResult bidiag = householder_bidiag(m, n, A);
-    int k_dim = (m < n) ? m : n;
-
-    // Allocate arrays for the diagonal (d) and the superdiagonal (e) of the bidiagonal matrix.
-    double *d = (double *)malloc(sizeof(double) * k_dim);
-    double *e = NULL;
-    if (k_dim > 1) {
-        e = (double *)malloc(sizeof(double) * (k_dim- 1));
-    }
+    int min_mn = (m < n) ? m : n;
 
     // Allocate memory for the matrices
     double *U = (double *)malloc(sizeof(double) * m * m);
     double *V = (double *)malloc(sizeof(double) * n * n);
     memcpy(U, bidiag.U, sizeof(double) * m * m);  // copy result from bidiag
     memcpy(V, bidiag.V, sizeof(double) * n * n);
-    double *S = (double *)malloc(sizeof(double) * k_dim);
+    double *S = (double *)malloc(sizeof(double) * min_mn);
 
     // Checking orthogonality 
     printf("U orthogonal? %s\n", is_orthogonal(U, m, 1e-10) ? "YES" : "NOPE");
     printf("V orthogonal? %s\n", is_orthogonal(V, n, 1e-10) ? "YES" : "NOPE");
 
 
-    // Extract the diagonal and superdiagonal from bidiag.B.
-    // We assume that bidiag.B is stored in row-major order as an m x n matrix.
-    // For indices i = 0,...,k-1, the diagonal element is at B[i * n + i].
-    // For i = 0,...,k-2, the superdiagonal element is at B[i * n + i + 1].
-    for (int i = 0; i < k_dim; i++) {
-        d[i] = bidiag.B[i * n + i];
-        if (i < k_dim - 1 && e != NULL) {
-            e[i] = bidiag.B[i * n + i + 1];
-        }
-    }
+    // 2.2-2.5
+    int p = 0;
+    int q = 0;
+    find_active_block(bidiag.B, &p, &q, min_mn);
 
-    // Process the bidiagonal matrix block-by-block.
-    // 2b
-    int p = 0, q = 0;
-    find_active_block(d, e, &p, &q, k_dim);
-    // p: start index; q: first index where off-diagonal is zero (or q == k_dim if never zero)
-    while (p < k_dim) {
+    while(p<min_mn && q!=0){
         // If the block is trivial (a 1x1 block), skip it.
         if (p == q) {
             p = q + 1;
-            if (p < k_dim)
-                find_active_block(d, e, &p, &q, k_dim);
+            if (p < min_mn)
+                find_active_block(bidiag.B, &p, &q, min_mn);
             continue;
         }
-        // Process active block [p, q] with implicit QR steps.
+        // 2.1
         int iter = 0;
         while (true) {
-            // Zero out any tiny off-diagonals within the block.
+            // Zero out any epsilon small off-diagonals within the block.
             for (int i = p; i < q; i++) {
-                if (fabs(e[i]) <= epsilon * (fabs(d[i]) + fabs(d[i+1])))
-                    e[i] = 0.0;
+                if (fabs(bidiag.B[i*n+i+1]) <= epsilon * (fabs(bidiag.B[i*n+i]) + fabs(bidiag.B[(i+1)*n+i+1])))
+                    bidiag.B[i*n+i+1] = 0.0;
             }
             // Check if the block has split (i.e. an off-diagonal is exactly zero).
             int split_found = -1;
             for (int i = p; i < q; i++) {
-                if (e[i] == 0.0) {
+                if (bidiag.B[i*n+i+1] == 0.0) {
                     split_found = i;
                     break;
                 }
@@ -196,68 +177,31 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
                 exit(1);
             }
 
-            // Compute the implicit shift mu using the bottom-right 2x2 submatrix of the block.
-            // Here we use indices (q-1, q) since q is the last index in the active block.
-            double mu = compute_shift(q, p, d, e);
-
-            // Perform one QR sweep over the block.
-            double x = d[p] - mu;
-            double z = e[p];
-            double c, s;
-            for (int i = p; i < q; i++) {
-                givens_rotation(x, z, &c, &s);
-                
-                // Apply right rotation to update d[i] and e[i].
-                double temp_d = d[i];
-                double temp_e = e[i];
-                d[i] = c * temp_d - s * temp_e;
-                e[i] = s * temp_d + c * temp_e;
-                
-                // If applicable, update the next diagonal element.
-                if (i + 1 <= q) {
-                    double temp_d_next = d[i + 1];
-                    d[i + 1] = c * temp_d_next;
+        // 2.5
+            for (int i=p; i<q;i++){
+                if (bidiag.B[i*n+i]==0){
+                    // Apply Givens rotation to zero out B[i*n+i+1] and break to reassess blocks
                 }
-                
-                // Prepare values for the next rotation.
-                x = d[i];
-                // For all but the last element, use e[i+1] for the next z.
-                z = (i < q - 1) ? e[i + 1] : 0.0;
-                
-                // Accumulate the Givens rotation into the singular vector matrices.
-                apply_givens_to_cols(V, n, n, i, i + 1, c, s);
-                apply_givens_to_cols(U, m, m, i, i + 1, c, s);
+                else {
+                    // 2.6
+                    // get mu
+                    // set alpha and beta
+                    // find c and s such that the quation holds
+                    // B*R(c,s) where Givens rotation that acts on columns i, i+1
+                    // Update V with V*R
+                    // set alpha and beta to B[i,i] and B[i,i+1]
+                    // find c and s such that the quation holds
+                    // R(c,-s)*B where Givens rotation that acts on rows i, i+1
+                    // Update U with R*U
+                    // update alpha and beta to B[i,i+1] and B[i,i+2]
+                }
             }
-            // Final adjustment: if the last computed z is small, set the corresponding off-diagonal to 0.
-            if (fabs(z) <= epsilon * (fabs(d[q - 1]) + fabs(d[q])))
-                e[q - 1] = 0.0;
-        } // End processing for current block.
 
-        // Recompute the next active block.
-        find_active_block(d, e, &p, &q, k_dim);
-    } // End processing of all blocks.
-
-
-    // Post-process: make singular values nonnegative.
-    for (int i = 0; i < k_dim; i++) {
-        if (d[i] < 0) {
-            d[i] = -d[i];
-            for (int j = 0; j < n; j++) {
-                V[j*n + i] = -V[j*n + i];
-            }
-        }
-    }
-
-        // Store singular values in S.
-    for (int i = 0; i < k_dim; i++) {
-        S[i] = d[i];
     }
 
     // Free temporary resources.
-    free(bidiag.B);
-    free(d);
-    if (e != NULL) free(e);
 
-    SVDResult result = {m,n,k_dim,U,S,V};
+
+    SVDResult result = {m,n,min_mn,U,S,V};
     return result;
 }
