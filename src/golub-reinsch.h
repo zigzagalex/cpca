@@ -5,7 +5,7 @@
 typedef struct {
     int m;      // number of rows of the original matrix A
     int n;      // number of columns of the original matrix A
-    int k;      // min(m,n)
+    int k;      // min of m,n 
     double *U;  // Left singular vectors, stored in row-major (size: m x m)
     double *S;  // Singular values (vector of length k)
     double *V;  // Right singular vectors, stored in row-major (size: n x n)
