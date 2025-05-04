@@ -143,6 +143,7 @@ void find_active_block(double *B, int n, int *p, int *q, int min_mn) {
     
   
     Steps in algorithm: 
+    0. If the matrix is very wide m<n then we compute and use the transpose of A for SVD and swap U, V at the end of the algorithm
     1. Compute A = U' * B * V'^T using Householder reflections so that U', V' orthogonal and B is bidiagonal
     2. Loop through these steps for i from 0 to min(m,n): 
         2.1 If B[i,i+1] < epsilon * (abs(B[i,i])+abs(B[i+1, i+1])) set B[i, i+1]=0
