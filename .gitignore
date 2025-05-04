@@ -38,6 +38,8 @@
 run_tests
 householder
 matrices 
+*.sh
+*.exec
 
 # Debug files
 *.dSYM/
@@ -53,3 +55,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+
+# Python
+*.venv
+*.toml
