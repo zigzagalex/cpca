@@ -7,7 +7,7 @@
 #include <cblas.h>
 #include "householder.h"  // Contains BidiagResult and householder_bidiag()
 
-#define MAX_ITER 1000
+#define MAX_ITER 10000
 
 // STRUCTS
 typedef struct {
@@ -21,6 +21,14 @@ typedef struct {
 
 
 // HELPER FUNCTIONS
+double *transpose_dense(const double *A, int rows, int cols)
+{
+    double *T = malloc(sizeof(double)*rows*cols);   /* caller frees */
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c)
+            T[c*rows + r] = A[r*cols + c];
+    return T;
+}
 // Compute a Givens rotation that zeroes out b given a and b,
 // returning cosine and sine values in c and s respectively.
 void givens_rotation(double a, double b, double *c, double *s) {
@@ -203,7 +211,7 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
                     givens_rotation(0.0, B[i*n + i + 1], &c, &s);
                     // Apply givens left rotation to B and U: L*B and L*U
                     apply_givens_to_rows(B, min_mn, n, i, i+1, c, s);
-                    apply_givens_to_rows(U, m, m, i, i+1,  c, -s);
+                    apply_givens_to_cols(U, m, m, i, i+1,  c, s);
                     handled_zero = true;
                     break;
                 }
@@ -235,7 +243,7 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
                 // left rotation to push bulge down one row 
                 givens_rotation(B[k*n + k], B[(k+1)*n + k], &c, &s);
                 apply_givens_to_rows(B, min_mn, n, k, k+1, c, s);
-                apply_givens_to_rows(U, m, m, k, k+1, c, -s);
+                apply_givens_to_cols(U, m, m, k, k+1, c, s);
 
                 // right rotation to push bulge right one column 
                 if (k < q - 1 && k + 2 < n) {
@@ -248,11 +256,6 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
         // Re‑identify the next active block 
         find_active_block(B, n, &p, &q, min_mn);
     }
-
-    // Sanity checks (optional – comment out in production) 
-    printf("U orthogonal?  %s\n", is_orthogonal(U, m, 1e-10) ? "yes" : "no");
-    printf("V orthogonal?  %s\n", is_orthogonal(V, n, 1e-10) ? "yes" : "no");
-
 
     // Copy the singular values (absolute diagonal of B)
     double *S = (double *)malloc(sizeof(double) * min_mn);

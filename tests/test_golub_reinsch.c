@@ -5,7 +5,14 @@
 #include <cblas.h>
 #include "golub-reinsch.h"   // Contains the SVDResult struct and svd() prototype
 
-#define TOL 1e-6
+#define TOL 1e-8
+#define BIG_TOL 1e-6
+
+// Rand
+double frand(void)     /* uniform [‑0.5, 0.5] */
+{
+    return (rand() / (double)RAND_MAX) - 0.5;
+}
 
 // Debugging print functions
 void print_matrix(const char *name, const double *M, int rows, int cols) {
@@ -34,7 +41,6 @@ double frob_norm_diff(int rows, int cols, const double *A, const double *B) {
     for (int i = 0; i < size; i++) {
         diff[i] = A[i] - B[i];    
     }
-    print_matrix("Frob", diff, rows, cols);
     double norm = cblas_dnrm2(size, diff, 1);
     free(diff);
     return norm;
@@ -134,11 +140,74 @@ void test_known_matrix() {
     printf("Test 'known matrix' passed.\n");
 }
 
+// Test 4: Very wide Matrix
+void test_wide(void)
+{
+    int m = 5, n = 100;
+    double *A = (double *)malloc(sizeof(double) * m * n);
+    for (int i = 0; i < m * n; ++i) A[i] = frand();
+
+    SVDResult svd = golub_reinsch_svd(m, n, A, TOL);
+
+    double *A_rec = (double *)malloc(sizeof(double) * m * n);
+    reconstruct_A(&svd, A_rec);
+    double err = frob_norm_diff(m, n, A, A_rec);
+    printf("Wide 5×100 reconstruction error: %.3e\n", err);
+    assert(err < TOL);
+
+    free(A);  free(A_rec);
+    free(svd.U); free(svd.S); free(svd.V);
+    puts("test_wide ✓");
+}
+
+// Test 5: Very Tall Matrix
+void test_tall(void)
+{
+    int m = 100, n = 5;
+    double *A = (double *)malloc(sizeof(double) * m * n);
+    for (int i = 0; i < m * n; ++i) A[i] = frand();
+
+    SVDResult svd = golub_reinsch_svd(m, n, A, TOL);
+
+    double *A_rec = (double *)malloc(sizeof(double) * m * n);
+    reconstruct_A(&svd, A_rec);
+    double err = frob_norm_diff(m, n, A, A_rec);
+    printf("Tall 100×5 reconstruction error: %.3e\n", err);
+    assert(err < TOL);
+
+    free(A);  free(A_rec);
+    free(svd.U); free(svd.S); free(svd.V);
+    puts("test_tall ✓");
+}
+
+// Test 6: Bigger Matrix
+void test_big(void)
+{
+    int m = 500, n = 500;
+    double *A = (double *)malloc(sizeof(double) * m * n);
+    for (int i = 0; i < m * n; ++i) A[i] = frand();
+
+    SVDResult svd = golub_reinsch_svd(m, n, A, BIG_TOL);
+
+    double *A_rec = (double *)malloc(sizeof(double) * m * n);
+    reconstruct_A(&svd, A_rec);
+    double err = frob_norm_diff(m, n, A, A_rec);
+    printf("Big 500×500 reconstruction error: %.3e\n", err);
+    assert(err < 5e-6);      /* full rank, ill‑conditioned => allow a hair more */
+
+    free(A);  free(A_rec);
+    free(svd.U); free(svd.S); free(svd.V);
+    puts("test_big ✓");
+}
+
 int main() {
     printf("Running SVD tests...\n");
     test_reconstruction();
     test_identity();
     test_known_matrix();
+    // test_wide();
+    test_tall();
+    test_big();
     printf("✅ All SVD tests passed.\n");
     return 0;
 }
