@@ -6,10 +6,10 @@
 #include "golub-reinsch.h"   // Contains the SVDResult struct and svd() prototype
 
 #define TOL 1e-8
-#define BIG_TOL 1e-6
+#define BIG_TOL 1e-10
 
 // Rand
-double frand(void)     /* uniform [‑0.5, 0.5] */
+double frand(void)     // uniform [‑0.5, 0.5] 
 {
     return (rand() / (double)RAND_MAX) - 0.5;
 }
@@ -193,7 +193,7 @@ void test_big(void)
     reconstruct_A(&svd, A_rec);
     double err = frob_norm_diff(m, n, A, A_rec);
     printf("Big 500×500 reconstruction error: %.3e\n", err);
-    assert(err < 5e-6);      /* full rank, ill‑conditioned => allow a hair more */
+    assert(err < 5e-6);     
 
     free(A);  free(A_rec);
     free(svd.U); free(svd.S); free(svd.V);

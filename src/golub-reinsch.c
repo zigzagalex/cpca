@@ -86,7 +86,7 @@ double compute_shift(int n, int q, double *B) {
     double λ1 = 0.5 * tr + disc;
     double λ2 = 0.5 * tr - disc;
 
-    /* Choose the eigen‑value closer to a22 (the bottom‑right element) */
+    // Choose the eigen‑value closer to a22 (the bottom‑right element) 
     double λ = (fabs(λ1 - a22) < fabs(λ2 - a22)) ? λ1 : λ2;
     return sqrt(fmax(0.0, λ));
 }
@@ -266,8 +266,8 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
     // Postprocessing for signs
     for (int i=0; i<min_mn;i++){
         if (B[i*n + i] < 0.0) {
-            S[i] = -B[i*n + i];      /* positive sigma_i */
-        for (int r = 0; r < n; ++r)  /* or m if you choose U */
+            S[i] = -B[i*n + i];      
+        for (int r = 0; r < n; ++r)  
             V[r*n + i] = -V[r*n + i];
         } else {
             S[i] =  B[i*n + i];
