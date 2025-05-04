@@ -29,6 +29,7 @@ double *transpose_dense(const double *A, int rows, int cols)
             T[c*rows + r] = A[r*cols + c];
     return T;
 }
+
 // Compute a Givens rotation that zeroes out b given a and b,
 // returning cosine and sine values in c and s respectively.
 void givens_rotation(double a, double b, double *c, double *s) {
@@ -156,8 +157,19 @@ void find_active_block(double *B, int n, int *p, int *q, int min_mn) {
             2.6.4 Propagate the bulge with a nother left ant right givens rotation pushing the bulge down and right one row
 */
 SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
+    // If m<n then transpose and do svd on A^T then A^T = U*B*V^T and A = V*B*U^T --> return U = V and V = U^T
+    const int m_orig = m, n_orig = n;    
+    bool wide = (n > m);
+    const double *Awork = A;                    
+    double *Acopy = NULL;  
+    int ldV = wide ? n_orig : n;                   
+    if (wide) {
+        Acopy  = transpose_dense(A, m, n);     
+        Awork  = Acopy;
+        int tmp = m; m = n; n = tmp;
+    }
     // Bidiagonalize A
-    BidiagResult bidiag = householder_bidiag(m, n, A);
+    BidiagResult bidiag = householder_bidiag(m, n, Awork);
     int min_mn = (m < n) ? m : n;
 
     // Convenience pointers
@@ -257,6 +269,14 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
         find_active_block(B, n, &p, &q, min_mn);
     }
 
+    // Redo transpose 
+    if (wide) {
+        // U is m×m (== n_orig×n_orig), V is n×n (== m_orig×m_orig)
+        double *Utmp = U;   // keep big one around
+        U = V;             // small m_orig×m_orig -> left sing. vecs of A
+        V = Utmp;          // big  n_orig×n_orig -> right sing. vecs of A 
+    }
+
     // Copy the singular values (absolute diagonal of B)
     double *S = (double *)malloc(sizeof(double) * min_mn);
     if (!S) {
@@ -267,8 +287,8 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
     for (int i=0; i<min_mn;i++){
         if (B[i*n + i] < 0.0) {
             S[i] = -B[i*n + i];      
-        for (int r = 0; r < n; ++r)  
-            V[r*n + i] = -V[r*n + i];
+        for (int r = 0; r < ldV; ++r)  
+            V[r*ldV + i] = -V[r*ldV + i];
         } else {
             S[i] =  B[i*n + i];
         }
@@ -278,7 +298,8 @@ SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon) {
 
     // Free
     free(B);
+    if (Acopy) free(Acopy);
 
-    SVDResult result = {m,n,k,U,S,V};
+    SVDResult result = {m_orig, n_orig, k, U, S, V};
     return result;
 }

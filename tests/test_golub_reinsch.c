@@ -5,8 +5,8 @@
 #include <cblas.h>
 #include "golub-reinsch.h"   // Contains the SVDResult struct and svd() prototype
 
-#define TOL 1e-8
-#define BIG_TOL 1e-10
+#define TOL 1e-10
+#define BIG_TOL 1e-12
 
 // Rand
 double frand(void)     // uniform [‑0.5, 0.5] 
@@ -205,7 +205,7 @@ int main() {
     test_reconstruction();
     test_identity();
     test_known_matrix();
-    // test_wide();
+    test_wide();
     test_tall();
     test_big();
     printf("✅ All SVD tests passed.\n");
