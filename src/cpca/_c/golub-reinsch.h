@@ -1,4 +1,5 @@
-#ifndef svd_golub_reinsch
+#ifndef GOLUB-REINSCH
+#define GOLUB-REINSCH
 
 typedef struct {
     int m;      // number of rows of the original matrix A
