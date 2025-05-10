@@ -1,7 +1,7 @@
 #ifndef CPCA_H
 #define CPCA_H
 
-typedef struct {
+typedef struct PCAResult {
     int m, n, k;          // rows, cols, # components (k = min(m,n))
     double *PCAdirections;// V  (nxn) matrix axes that slice through the data cloud so you see the biggest spread
     double *scores;       // T  (m × k)

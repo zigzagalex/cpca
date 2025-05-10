@@ -67,3 +67,8 @@ dkms.conf
 # Mac Stuff
 *.DS_Store
 *.dSYM
+
+# Build 
+*.egg-info
+*dist/
+*.sh

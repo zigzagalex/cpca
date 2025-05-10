@@ -1,5 +1,5 @@
-#ifndef GOLUB-REINSCH
-#define GOLUB-REINSCH
+#ifndef GOLUBREINSCH
+#define GOLUBREINSCH
 
 typedef struct {
     int m;      // number of rows of the original matrix A

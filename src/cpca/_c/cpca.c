@@ -9,7 +9,7 @@
 
 #define epsilon 1e-10
 
-typedef struct {
+typedef struct PCAResult{
     int m, n, k;          // rows, cols, # components (k = min(m,n))
     double *PCAdirections;// V  (nxn) matrix axes that slice through the data cloud so you see the biggest spread
     double *scores;       // T  (m × k)
@@ -32,8 +32,8 @@ void center(double *A, int m, int n){
             sum += A[i*n + j];
         mean[j] = sum / (double)m;    
     }
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < m; ++i)
+    for (int j = 0; j < n; ++j)
+        for (int i = 0; i < m; ++i)
             A[i*n + j] -= mean[j];
 
     free(mean);

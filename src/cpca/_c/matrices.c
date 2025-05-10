@@ -1,5 +1,7 @@
-# include <stdio.h>
-# include <cblas.h>
+#include <stdio.h>
+#include <cblas.h>
+#include <math.h>
+
 void print_matrix(const double *A, int rows, int cols) {
     for (int i=0; i<rows; i++){
         for (int j=0; j<cols; j++){
