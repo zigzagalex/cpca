@@ -124,6 +124,17 @@ void find_active_block(double *B, int n, int *p, int *q, int min_mn) {
     *q = j;
 }
 
+void free_svd(SVDResult *svd)
+{
+    if (!svd) return;      
+
+    free(svd->U);             
+    free(svd->S);              
+    free(svd->V);              
+    svd->U = svd->S = svd->V = NULL;
+    svd->m = svd->n = svd->k = 0;
+}
+
 /*
     Golub–Reinsch SVD for a bidiagonal matrix.
 

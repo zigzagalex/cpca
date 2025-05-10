@@ -15,5 +15,7 @@ typedef struct {
 // Golub-Reinsch algorithm. The tolerance (epsilon) is used for convergence checks.
 SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon);
 
+free_svd(SVDResult *svd);
+
 #endif
 
