@@ -63,3 +63,7 @@ dkms.conf
 
 # VSCode
 *.vscode
+
+# Mac Stuff
+*.DS_Store
+*.dSYM

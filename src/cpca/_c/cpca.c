@@ -51,31 +51,31 @@ double *scores_from_us(const double *U, const double *S, int m, int k) {
 }
 
 // Loadings L = V · Σ / √(N−1)
-void loadings(const double *V, const double *S, int n, int k, int m, double **loadings_out){
+double *loadings(const double *V, const double *S, int n, int k, int m, double **loadings_out){
     const double inv_sqrt_nm1 = 1.0 / sqrt((double)(m - 1));
     double *L = malloc((size_t)n * k * sizeof *L);
     if (!L) return NULL;
     for (int j = 0; j < n; ++j)
         for (int c = 0; c < k; ++c)
             L[j*k + c] = V[j*n + c] * S[c] * inv_sqrt_nm1;
-    *loadings_out = L;
+    return L;
 }
 
 // Standard deviation of each PC s_k = σ_k / √(N−1)
-void std_PC(const double *S, int k, int m, double **stddev_out){
+double *std_PC(const double *S, int k, int m, double **stddev_out){
     const double inv_sqrt_nm1 = 1.0 / sqrt((double)(m - 1));
     double *stddev = malloc((size_t)k * sizeof *stddev);
     if (!stddev) return NULL;
     for (int c = 0; c < k; ++c)
         stddev[c] = S[c] * inv_sqrt_nm1;
-    *stddev_out = stddev;
+    return stddev;
 }
 
 // Proportion of variance explained p_k = σ_k² / Σ_j σ_j² and commulatative proportion of variance explained c_k = Σ_{j ≤ k} p_j
 void pve(const double *S, int k, int m, double **pve_out, double **cum_out){
     double *pve  = malloc((size_t)k * sizeof *pve);
     double *cum  = malloc((size_t)k * sizeof *cum);
-    if (!pve || !cum) return NULL;
+    if (!pve || !cum) { free(pve); free(cum); *pve_out = *cum_out = NULL; return; }
     double total = 0.0;
     for (int c = 0; c < k; ++c) total += S[c]*S[c];
 
@@ -105,7 +105,6 @@ PCAResult cpca(double *A, int m, int n){
 
     SVDResult svd = golub_reinsch_svd(m, n, A, epsilon);
     int k = svd.k;
-    R.k = k;
 
     PCAResult R = {m, n, k, NULL,NULL,NULL,NULL,NULL,NULL};
 
@@ -116,13 +115,13 @@ PCAResult cpca(double *A, int m, int n){
     // Compute the standerdised scores with 
     R.scores = scores_from_us(svd.U, svd.S, m, k);
     // Compute the loadings 
-    loadings(svd.V, svd.S, n, k, m, &R.loadings);
+    R.loadings = loadings(svd.V, svd.S, n, k, m, &R.loadings);
     // Compute the standard deviation
-    std_PC(svd.S, n, k, m, &R.stddev);
+    R.stddev = std_PC(svd.S, k, m, &R.stddev);
     // Compute the proportion of variance explained (eigenvalues)
-    pve(svd.V, svd.S, n, k, m, &R.pve, &R.cum);
+    pve(svd.S, k, m, &R.pve, &R.cum);
 
-    /* alloc failure check */
+    // Alloc failure check 
     if (!R.scores || !R.loadings || !R.stddev || !R.pve || !R.cum)
         goto FAIL;
 

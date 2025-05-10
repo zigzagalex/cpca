@@ -1,6 +1,4 @@
-// In svd.h
-#ifndef SVD_H
-#define SVD_H
+#ifndef svd_golub_reinsch
 
 typedef struct {
     int m;      // number of rows of the original matrix A
@@ -15,7 +13,7 @@ typedef struct {
 // Golub-Reinsch algorithm. The tolerance (epsilon) is used for convergence checks.
 SVDResult golub_reinsch_svd(int m, int n, const double *A, double epsilon);
 
-free_svd(SVDResult *svd);
+void free_svd(SVDResult *svd);
 
 #endif
 
