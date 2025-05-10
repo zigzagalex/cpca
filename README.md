@@ -18,7 +18,7 @@ The output of PCA is:
 * Loadings of principle components i.e. how much every variable contributes to a principle component.
 
 ### How can PCA be done with SVD?
-Any real m * n matrix $A$ can be decomposed into $A=U*\Sigma*V^T$. Where $U$ (n*n) and $V$ (m*m) are orthogonal matrices and $\Sigma$ (n*m)is a diagonal matrix containing the singular values of $A$ (i.e. the eigenvalues of cov(A)). In other words any matrix can be decomposed into a rotation, a stretch and another rotation. 
+Any real m * n matrix $`A`$ can be decomposed into $`A=U*\Sigma*V^T`$. Where $U$ (n*n) and $V$ (m*m) are orthogonal matrices and $\Sigma$ (n*m)is a diagonal matrix containing the singular values of $A$ (i.e. the eigenvalues of cov(A)). In other words any matrix can be decomposed into a rotation, a stretch and another rotation. 
 
 For PCA $A$ must be centered with respect to the columns. 
 
