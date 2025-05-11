@@ -6,7 +6,7 @@ cimport numpy as np
 from libc.stdlib cimport malloc, free
 
 cdef extern from "_c/cpca.h":
-    cdef struct PCAResult:
+    ctypedef struct PCAResult:
         int m
         int n
         int k
@@ -49,7 +49,7 @@ def pca(np.ndarray[np.double_t, ndim=2, mode="c"] A):
         pve = np.frombuffer(<double[:res.k]> res.pve, dtype=np.double).copy()
         cum = np.frombuffer(<double[:res.k]> res.cum, dtype=np.double).copy()
     finally:
-        # ALWAYS free C memory even if something blows up
+        # Free C memory 
         free_pca(&res)
 
     return scores, loadings, stddev, pve, cum
