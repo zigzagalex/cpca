@@ -52,11 +52,20 @@ project/
 └── README.md | LICENSE | …
 ```
 
-In this case, _cpca.pyx contains both the definitions of types and functions as well as the python wrapper for the C functions. One can also split the .pyx into a .pxd file containing the definitions separately. 
+In this case, ```_cpca.pyx``` contains both the definitions of types and functions as well as the python wrapper for the C functions. One can also split the ```.pyx``` into a ```.pxd``` file containing the definitions separately. 
 
-We use the declarative style pyproject.toml for the build instead of the setup.py. Here we must specify the [build-system], [project] metadata, sources, dependancies, directories and other libraries to include. 
+We use the declarative style ```pyproject.toml``` for the build instead of the ```setup.py```. Here we must specify the [build-system], [project] metadata, sources, dependancies, directories and other libraries to include. 
 
-Finally this module can be build and install locally into the environment using ```pip install -e .```. Then we can run ```pytest``` for the tests created in test_cpca.py. Every time the code changes we have to rebuild and install. 
+Finally this module can be build and install locally into the environment using ```pip install -e .``` (make sure you are in your virtual environment, or else your venv wont find the module).
+
+Then we can run ```import cpca``` or ```pytest``` for the tests created in test_cpca.py. Every time the code changes we have to rebuild and install. 
+
+### Visualization of the Golub-Reinsch algorithm
+To visualize what is happening in the algorithm we reconstruct it in python and use plotly for visualizaiton. Then we use plotly to create a grid and plot the elements of the matrix on the grid as bar graphs. Each step in the alorithm that alters the matrix S is recorded. In the animation below we see how first the Householder algorithms rotates the basis vectors such that all non diagonal and superdiagonal elements are removed. Then the Golub-Reinsch algorithm starts performing transformations on the blocks. 
+
+<p align="center">
+  <img src="./svd.gif" alt="Demo" />
+</p>
 
 
 ### References
