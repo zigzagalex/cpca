@@ -58,7 +58,7 @@ void test_pca_jolliffe(void)
     // In R first PC explains > 96 %
     assert(p.pve[0] > 0.96);
 
-    puts("Pretty print for Jolliffe toy data:");
+    puts("Pretty print for toy data:");
     pca_pretty_print(&p);
 
     free(A);

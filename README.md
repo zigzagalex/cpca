@@ -17,6 +17,35 @@ The output of PCA is:
 * The variance explained by the principle components in proportion to total variance of the dataset
 * Loadings of principle components i.e. how much every variable contributes to a principle component.
 
+For the PCA of 
+```
+double X[10][2] = {
+    {2.5, 2.4},
+    {0.5, 0.7},
+    {2.2, 2.9},
+    {1.9, 2.2},
+    {3.1, 3.0},
+    {2.3, 2.7},
+    {2.0, 1.6},
+    {1.0, 1.1},
+    {1.5, 1.6},
+    {1.1, 0.9}
+};
+```
+we get as the results of PCA:
+```
+Importance of components:
+                           PC1       PC2    
+  Standard deviation       1.1331    0.2215
+  Proportion Variance      0.9632    0.0368
+  Cumulative Proportion    0.9632    1.0000
+
+Rotation (loadings):
+           PC1       PC2    
+Var1      -0.7681    0.1629
+Var2      -0.8331   -0.1502
+```
+
 ### How can PCA be done with SVD?
 Any real m * n matrix $`A`$ can be decomposed into $`A=U*\Sigma*V^T`$. Where $`U`$ (n*n) and $`V`$ (m*m) are orthogonal matrices and $`\Sigma`$ (n*m)is a diagonal matrix containing the singular values of $`A`$ (i.e. the eigenvalues of $`cov(A)`$). In other words any matrix can be decomposed into a rotation, a stretch and another rotation. 
 
