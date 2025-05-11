@@ -1,59 +1,89 @@
-import io
-import os
+import pathlib
 
-import imageio.v2 as imageio
 import numpy as np
 import plotly.io as pio
 from golubreinsch import golub_reinsch_svd_snapshots
 from plotmatrix import plot_b_history
 
 
-def b_history_to_gif(
+def export_b_plot_for_readme(
     B_hist,
-    gif_path="svd.gif",
     *,
+    out_dir="assets",
+    html_name="svd_interactive.html",
+    png_name="svd_thumb.png",
     bar_depth=0.9,
-    colorscale="Viridis",
-    frame_ms=500,
+    colorscale="Turbo",
+    frame_ms=750,
     transition_ms=150,
-    width=900,
-    height=700,
-    scale=2,
-    show_plot_interactive=False,
+    png_width=900,
+    png_height=700,
+    png_scale=2,
 ):
     """
-    Render the cuboid animation with plot_b_history(), grab every frame
-    as PNG via Kaleido, and write them out as an animated GIF.
+    • Builds the interactive cuboid figure (no browser pop-up).
+    • Saves it as HTML and as a PNG thumbnail.
+    • Prints a Markdown snippet that links thumbnail → interactive plot.
     """
-    # build the interactive animation without showing it —
-    fig = plot_b_history(
+    # build figure
+    fig: go.Figure = plot_b_history(
         B_hist,
         bar_depth=bar_depth,
         colorscale=colorscale,
         frame_ms=frame_ms,
         transition_ms=transition_ms,
-        show=show_plot_interactive,
+        show=False,  # headless
     )
-    # grab the first (static) scene
-    png_bytes = pio.to_image(fig, format="png", width=width, height=height, scale=scale)
-    frames = [imageio.imread(io.BytesIO(png_bytes))]
 
-    # iterate over the remaining animation frames
-    for fr in fig.frames:  # skips t=0
-        fig.update(data=fr.data)  # draw this frame
-        png_bytes = pio.to_image(
-            fig, format="png", width=width, height=height, scale=scale
-        )
-        frames.append(imageio.imread(io.BytesIO(png_bytes)))
+    # strip controls so thumb & HTML look clean
+    fig.update_layout(sliders=[], updatemenus=[])
 
-    # write the GIF
-    print("Writing GIF")
-    fps = 30 / frame_ms  # frame_ms → frames / sec
-    imageio.mimsave(gif_path, frames, fps=fps)
-    print(f"✔ GIF saved → {os.path.abspath(gif_path)}")
+    # ensure output folder exists
+    out_path = pathlib.Path(out_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # full paths
+    html_path = out_path / html_name
+    png_path = out_path / png_name
+
+    # save interactive HTML (self-contained, JS via CDN)
+    fig.write_html(html_path, include_plotlyjs="cdn", full_html=True)
+
+    # save static PNG thumbnail
+    pio.write_image(
+        fig,
+        png_path,
+        format="png",
+        width=png_width,
+        height=png_height,
+        scale=png_scale,
+        engine="kaleido",
+    )
+
+    print("✔ Saved:")
+    print("  •", html_path.resolve())
+    print("  •", png_path.resolve())
+    print()
+
+    # Markdown snippet ----------------------------------------------------
+    # GitHub READMEs cannot run JS, so we link the thumbnail to the HTML.
+    # If you publish on GitHub-Pages, swap the `html_preview_link` with the
+    # final URL (e.g. https://USERNAME.github.io/REPO/assets/svd_interactive.html)
+
+    html_preview_link = (
+        f"https://htmlpreview.github.io/?"
+        f"https://raw.githubusercontent.com/"
+        f"YOUR_GH_USERNAME/YOUR_REPO_NAME/MAIN_BRANCH/{html_path.as_posix()}"
+    )
+
+    md = f"[![SVD cuboids]({png_path.as_posix()})]({html_preview_link})"
+
+    print("--- Copy-paste this into your README.md ---")
+    print(md)
+    print("-" * 60)
 
 
 if __name__ == "__main__":
     A = np.random.rand(10, 10)
-    B_hist, V_hist, U_hist = golub_reinsch_svd_snapshots(A)
-    b_history_to_gif(B_hist, gif_path="svd.gif", colorscale="Turbo")
+    B_hist, *_ = golub_reinsch_svd_snapshots(A)
+    export_b_plot_for_readme(B_hist)

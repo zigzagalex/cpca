@@ -63,10 +63,7 @@ Then we can run ```import cpca``` or ```pytest``` for the tests created in test_
 ### Visualization of the Golub-Reinsch algorithm
 To visualize what is happening in the algorithm we reconstruct it in python and use plotly for visualizaiton. Then we use plotly to create a grid and plot the elements of the matrix on the grid as bar graphs. Each step in the alorithm that alters the matrix S is recorded. In the animation below we see how first the Householder algorithms rotates the basis vectors such that all non diagonal and superdiagonal elements are removed. Then the Golub-Reinsch algorithm starts performing transformations on the blocks. 
 
-<p align="center">
-  <img src="./svd.gif" alt="Demo" />
-</p>
-
+[![SVD cuboids](assets/svd_thumb.png)](https://htmlpreview.github.io/?https://raw.githubusercontent.com/zigzagalex/cpca/main/assets/svd_interactive.html)
 
 ### References
 [1] Bernstein, D. S. (2007). Handbook of Linear Algebra. In Discrete Mathematics and its Applications. CRC Press. See especially Chapter 45 by Alan Kaylor Cline and Inderjit S. Dhillon.  
