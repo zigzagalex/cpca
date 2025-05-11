@@ -60,6 +60,13 @@ dkms.conf
 # Python
 *.venv
 *.toml
+.python-version
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+
 
 # VSCode
 *.vscode
@@ -69,6 +76,9 @@ dkms.conf
 *.dSYM
 
 # Build 
-*.egg-info
-*dist/
-*.sh
+build/
+dist/
+*.egg-info/
+*.c
+*.so
+*.html

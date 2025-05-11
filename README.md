@@ -35,6 +35,28 @@ SVD algorithm implemented: Golub Reinsch with Golub Kahan step [1] but there are
 
 
 ### How is the C function packaged for Python?
+To use the C function in python we wrap it using cython. For this we create the a general file structure (for a simple C function):
+```
+project/
+├── src/
+│   └── project/
+│       ├── _c/           # all the raw .c & .h files
+│       │   ├── func.c
+│       │   ├── func.h
+│       │   └── …         
+│       ├── _func.pyx     # Cython wrapper
+│       └── __init__.py   # makes `import cpca` work
+├── python/
+│   └── tests/            # tests
+├── pyproject.toml        # modern build config
+└── README.md | LICENSE | …
+```
+
+In this case, _cpca.pyx contains both the definitions of types and functions as well as the python wrapper for the C functions. One can also split the .pyx into a .pxd file containing the definitions separately. 
+
+We use the declarative style pyproject.toml for the build instead of the setup.py. Here we must specify the [build-system], [project] metadata, sources, dependancies, directories and other libraries to include. 
+
+Finally this module can be build and install locally into the environment using ```pip install -e .```. Then we can run ```pytest``` for the tests created in test_cpca.py. Every time the code changes we have to rebuild and install. 
 
 
 ### References
